@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barcode Label Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-card: rgba(255,255,255,0.03);
+  --bg-card-hover: rgba(255,255,255,0.06);
+  --bg-input: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.08);
+  --border-focus: rgba(139,92,246,0.5);
+  --text-primary: #f0f0f5;
+  --text-secondary: rgba(255,255,255,0.5);
+  --text-muted: rgba(255,255,255,0.3);
+  --accent: #8b5cf6;
+  --accent-light: #a78bfa;
+  --accent-glow: rgba(139,92,246,0.15);
+  --success: #34d399;
+  --error: #f87171;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ambient background effects */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(ellipse 600px 600px at 20% 20%, rgba(139,92,246,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 500px at 80% 80%, rgba(59,130,246,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 400px at 60% 30%, rgba(236,72,153,0.04) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  animation: ambientShift 20s ease-in-out infinite alternate;
+}
+
+@keyframes ambientShift {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-30px, 20px) rotate(3deg); }
+}
+
+/* Noise texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page-wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 60px 24px 80px;
+}
+
+/* Header */
+.page-header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.page-header .logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), #6366f1);
+  margin-bottom: 20px;
+  box-shadow: 0 0 40px rgba(139,92,246,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.page-header .logo-mark svg { width: 28px; height: 28px; }
+.page-header h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+}
+.page-header p {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Sections */
+.section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(20px);
+  transition: background 0.3s, border-color 0.3s;
+}
+.section:hover { background: var(--bg-card-hover); border-color: rgba(255,255,255,0.1); }
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-light);
+  margin-bottom: 16px;
+}
+.section-label .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.section-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+/* Inputs */
+input[type="text"] {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.92rem;
+  transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+  outline: none;
+}
+input[type="text"]::placeholder { color: var(--text-muted); }
+input[type="text"]:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: rgba(255,255,255,0.07);
+}
+
+/* Buttons */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #6366f1);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 20px rgba(139,92,246,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(139,92,246,0.4), inset 0 1px 0 rgba(255,255,255,0.15); }
+.btn-primary:hover::before { opacity: 1; }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  padding: 12px 20px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); }
+
+.btn-ghost {
+  width: 100%;
+  padding: 14px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+}
+.btn-ghost:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.02); }
+
+.btn-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(248,113,113,0.08);
+  color: var(--error);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.btn-remove:hover { background: rgba(248,113,113,0.18); }
+.btn-remove.hidden { visibility: hidden; }
+
+/* Site name field */
+.site-name-section .input-group {
+  position: relative;
+}
+.site-name-section .input-group input {
+  padding-left: 44px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.site-name-section .input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Import section */
+.import-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+.msg { font-size: 0.82rem; margin-top: 10px; display: none; line-height: 1.4; }
+.msg-error { color: var(--error); }
+.msg-success { color: var(--success); }
+
+/* Item rows */
+.item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  animation: rowIn 0.25s ease-out;
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.items-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+
+/* Preview */
+.preview-section { display: none; }
+.preview-section.visible { display: block; }
+
+.barcode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.barcode-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 16px 20px;
+  text-align: center;
+  transition: all 0.3s;
+  animation: cardIn 0.4s ease-out backwards;
+}
+.barcode-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); transform: translateY(-2px); }
+.barcode-card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+.barcode-card .code-text {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+.barcode-card svg { max-width: 100%; height: auto; }
+.barcode-card .card-error { color: var(--error); font-size: 0.8rem; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.site-name-print { display: none; }
+
+.preview-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+  justify-content: center;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 8px 0 20px;
+}
+
+/* Animations */
+.fade-in { animation: fadeIn 0.5s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .page-wrapper { padding: 32px 16px 60px; }
+  .section { padding: 24px 20px; }
+  .page-header h1 { font-size: 1.7rem; }
+  .import-grid { grid-template-columns: 1fr; }
+  .barcode-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Print */
+@media print {
+  *, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #fff !important; color: #111 !important; }
+  body::before, body::after { display: none !important; }
+  .page-wrapper { padding: 20px 0; max-width: 100%; }
+  .page-header, .site-name-section, .import-section, .items-section, .preview-actions, button { display: none !important; }
+  .preview-section { display: block !important; }
+  .preview-section .section-label, .preview-section .section-title, .preview-section .section-desc { display: none !important; }
+  .site-name-print {
+    display: block !important;
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #ddd;
+  }
+  .print-subtitle {
+    display: block;
+    font-size: 1rem;
+    font-weight: 400;
+    color: #555;
+    margin-top: 4px;
+  }
+  .section { background: none; border: none; padding: 0; backdrop-filter: none; }
+  .barcode-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .barcode-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px 12px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    background: none;
+    box-shadow: none;
+  }
+  .barcode-card:hover { transform: none; }
+  .barcode-card h3 { color: #111; }
+  .barcode-card .code-text { color: #666; }
+}
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <header class="page-header fade-in">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="3" height="18"/><rect x="9" y="3" width="2" height="18"/><rect x="14" y="3" width="1" height="18"/><rect x="18" y="3" width="3" height="18"/></svg>
+    </div>
+    <h1>Barcode Generator</h1>
+    <p>Create, import, and print scannable barcode labels instantly.</p>
+  </header>
+
+  <!-- Site Name -->
+  <div class="section site-name-section fade-in">
+    <div class="section-label"><span class="dot"></span> Branding</div>
+    <div class="section-title">Site / Business Name</div>
+    <div class="section-desc">This name will appear as a heading when you print or save as PDF.</div>
+    <div class="input-group">
+      <span class="input-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </span>
+      <input type="text" id="site-name" placeholder="e.g. Acme Warehouse">
+    </div>
+  </div>
+
+  <!-- Import -->
+  <div class="section import-section fade-in">
+    <div class="section-label"><span class="dot"></span> Import</div>
+    <div class="section-title">Import Existing Barcode</div>
+    <div class="section-desc">Have an existing barcode? Enter an 8-digit (EAN-8) or 13-digit (EAN-13) code and it will be included in your next batch.</div>
+    <div class="import-grid">
+      <input type="text" id="import-code" placeholder="8 or 13 digits" maxlength="13">
+      <input type="text" id="import-name" placeholder="Item name">
+      <button class="btn-secondary" id="import-btn">Import</button>
+    </div>
+    <p class="msg msg-error" id="import-error"></p>
+    <p class="msg msg-success" id="import-success"></p>
+  </div>
+
+  <!-- Items -->
+  <div class="section items-section fade-in">
+    <div class="section-label"><span class="dot"></span> Create</div>
+    <div class="section-title">New Barcodes</div>
+    <div class="section-desc">Add your item names below. A unique barcode will be generated for each one.</div>
+    <div id="items-container">
+      <div class="item-row">
+        <input type="text" class="item-input" placeholder="Item name">
+        <button class="btn-remove hidden">&#x2715;</button>
+      </div>
+    </div>
+    <div class="items-actions">
+      <button class="btn-ghost" id="add-btn">+ Add Another Item</button>
+      <button class="btn-primary" id="generate-btn">Generate All Barcodes</button>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="section preview-section" id="preview-section">
+    <div class="site-name-print" id="site-name-print"></div>
+    <div class="section-label"><span class="dot"></span> Preview</div>
+    <div class="section-title">Your Barcodes</div>
+    <div class="section-desc">Review your generated labels below, then print or save as PDF.</div>
+    <div class="divider"></div>
+    <div class="barcode-grid" id="barcode-grid"></div>
+    <div class="preview-actions">
+      <button class="btn-primary" id="pdf-btn" style="width:auto; padding: 14px 40px;">
+        Print / Save as PDF
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const items = [];
+const usedCodes = new Set();
+
+function computeChecksum(digits) {
+  // Works for both EAN-8 (7 digits in) and EAN-13 (12 digits in)
+  let sum = 0;
+  const len = digits.length;
+  for (let i = 0; i < len; i++) {
+    const d = parseInt(digits[i], 10);
+    sum += (i % 2 === 0) ? d * ((len % 2 === 1) ? 3 : 1) : d * ((len % 2 === 1) ? 1 : 3);
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+function generateRandomEAN8() {
+  let base, code;
+  do {
+    base = String(Math.floor(Math.random() * 9000000) + 1000000);
+    code = base + computeChecksum(base);
+  } while (usedCodes.has(code));
+  usedCodes.add(code);
+  return code;
+}
+
+function validateBarcode(code) {
+  if (/^[0-9]{8}$/.test(code)) {
+    return computeChecksum(code.substring(0, 7)) === parseInt(code[7], 10) ? 'EAN8' : null;
+  }
+  if (/^[0-9]{13}$/.test(code)) {
+    return computeChecksum(code.substring(0, 12)) === parseInt(code[12], 10) ? 'EAN13' : null;
+  }
+  return null;
+}
+
+function updateRemoveButtons() {
+  const rows = document.querySelectorAll('#items-container .item-row');
+  rows.forEach(r => r.querySelector('.btn-remove').classList.toggle('hidden', rows.length === 1));
+}
+
+function addItem() {
+  const c = document.getElementById('items-container');
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = '<input type="text" class="item-input" placeholder="Item name"><button class="btn-remove">&#x2715;</button>';
+  c.appendChild(row);
+  row.querySelector('.btn-remove').addEventListener('click', () => removeItem(row));
+  row.querySelector('.item-input').addEventListener('keydown', handleItemEnter);
+  updateRemoveButtons();
+  row.querySelector('.item-input').focus();
+}
+
+function removeItem(row) {
+  if (document.querySelectorAll('#items-container .item-row').length <= 1) return;
+  row.style.opacity = '0';
+  row.style.transform = 'translateY(-8px)';
+  row.style.transition = 'all 0.2s';
+  setTimeout(() => { row.remove(); updateRemoveButtons(); }, 200);
+}
+
+function handleItemEnter(e) {
+  if (e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); addItem(); }
+}
+
+function showMsg(id, text) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+function importBarcode() {
+  const codeInput = document.getElementById('import-code');
+  const nameInput = document.getElementById('import-name');
+  document.getElementById('import-error').style.display = 'none';
+  document.getElementById('import-success').style.display = 'none';
+  const code = codeInput.value.trim(), name = nameInput.value.trim();
+  if (!name) { showMsg('import-error', 'Please enter an item name.'); return; }
+  const fmt = validateBarcode(code);
+  if (!fmt) { showMsg('import-error', 'Invalid code. Must be 8 or 13 digits with a valid checksum.'); return; }
+  usedCodes.add(code);
+  items.push({ name, barcode: code, format: fmt, imported: true });
+  showMsg('import-success', `"${name}" (${code}) imported successfully.`);
+  codeInput.value = ''; nameInput.value = '';
+}
+
+function generateBarcodes() {
+  const inputs = document.querySelectorAll('.item-input');
+  const newItems = [];
+  inputs.forEach(input => {
+    const name = input.value.trim();
+    if (name) {
+      const barcode = generateRandomEAN8();
+      newItems.push({ name, barcode, format: 'EAN8', imported: false });
+    }
+  });
+  const all = items.concat(newItems);
+  if (!all.length) { alert('Please enter at least one item name or import a barcode.'); return; }
+  items.length = 0;
+  all.forEach(it => items.push(it));
+
+  // Update print header
+  const siteName = document.getElementById('site-name').value.trim();
+  const printHeader = document.getElementById('site-name-print');
+  printHeader.innerHTML = siteName ? `${escapeHtml(siteName)}<span class="print-subtitle">Non Barcoded Items</span>` : '';
+
+  const grid = document.getElementById('barcode-grid');
+  grid.innerHTML = '';
+  items.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'barcode-card';
+    card.style.animationDelay = `${i * 0.05}s`;
+    card.innerHTML = `<h3>${escapeHtml(item.name)}</h3><p class="code-text">${item.barcode}</p><svg id="barcode-${i}"></svg>`;
+    grid.appendChild(card);
+    try {
+      JsBarcode(`#barcode-${i}`, item.barcode, { format: item.format || 'EAN8', width: 3, height: 70, displayValue: false, background: 'transparent', lineColor: '#000000' });
+    } catch (err) {
+      card.querySelector('svg').outerHTML = `<p class="card-error">Error: ${err.message}</p>`;
+    }
+  });
+
+  // Reset inputs
+  const c = document.getElementById('items-container');
+  c.innerHTML = '<div class="item-row"><input type="text" class="item-input" placeholder="Item name"><button class="btn-remove hidden">&#x2715;</button></div>';
+  c.querySelector('.btn-remove').addEventListener('click', function() { removeItem(this.parentElement); });
+  c.querySelector('.item-input').addEventListener('keydown', handleItemEnter);
+
+  const preview = document.getElementById('preview-section');
+  preview.classList.add('visible');
+  preview.scrollIntoView({ behavior: 'smooth' });
+}
+
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('add-btn').addEventListener('click', addItem);
+  document.getElementById('generate-btn').addEventListener('click', generateBarcodes);
+  document.getElementById('import-btn').addEventListener('click', importBarcode);
+  document.getElementById('pdf-btn').addEventListener('click', () => window.print());
+  document.querySelector('.btn-remove').addEventListener('click', function() { removeItem(this.parentElement); });
+  document.querySelector('.item-input').addEventListener('keydown', handleItemEnter);
+  document.getElementById('import-code').addEventListener('keydown', e => { if (e.key === 'Enter') importBarcode(); });
+  document.getElementById('import-name').addEventListener('keydown', e => { if (e.key === 'Enter') importBarcode(); });
+});
+</script>
+</body>
+</html>
