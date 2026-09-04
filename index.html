@@ -660,6 +660,20 @@ button:active { transform: scale(0.96) !important; }
 /* ── State ── */
 const items = [];
 const usedCodes = new Set();
+const defaultItems = [
+  'Samosa Chaat',
+  'Chili Non Carne',
+  'Mexican Loaded Fries',
+  'Tandoori Loaded Fries',
+  'Fries',
+  'Classic Cheese Burger',
+  'Chicken Pie & Mash',
+  'BBQ Chicken Burger',
+  'Ham and Cheese Panini',
+  'Cheese and Tomato Panini',
+  'Margherita Pizza Wedge',
+  'Desi Chicken Pizza Wedge'
+];
 
 /* ── Scroll reveal ── */
 const revealObserver = new IntersectionObserver((entries) => {
@@ -811,6 +825,18 @@ function escapeHtml(s) { const d = document.createElement('div'); d.textContent 
 
 /* ── Boot ── */
 document.addEventListener('DOMContentLoaded', () => {
+  const itemsContainer = document.getElementById('items-container');
+  itemsContainer.innerHTML = defaultItems.map(name => `
+    <div class="item-row">
+      <input type="text" class="item-input" placeholder="Item name" value="${escapeHtml(name)}">
+      <button class="btn-remove">&#x2715;</button>
+    </div>
+  `).join('');
+  itemsContainer.querySelectorAll('.item-row').forEach(row => {
+    row.querySelector('.btn-remove').addEventListener('click', () => removeItem(row));
+    row.querySelector('.item-input').addEventListener('keydown', handleItemEnter);
+  });
+  updateRemoveButtons();
   document.getElementById('add-btn').addEventListener('click', addItem);
   document.getElementById('generate-btn').addEventListener('click', generateBarcodes);
   document.getElementById('import-btn').addEventListener('click', importBarcode);
